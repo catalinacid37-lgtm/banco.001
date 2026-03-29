@@ -2,177 +2,118 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Banco BCI</title>
+<title>Banco</title>
 
 <style>
-body {
-    font-family: 'Segoe UI', sans-serif;
-    background: #f4f6f8;
-    margin: 0;
-}
-
-/* NAVBAR */
-.navbar {
-    background: #0c9647;
-    color: white;
-    padding: 15px;
-    font-size: 20px;
-    font-weight: bold;
-}
-
-/* CONTENEDOR */
-.container {
-    padding: 20px;
-}
-
-/* BOTONES */
-button {
-    background: #0c9647;
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    margin: 5px 0;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-button:hover {
-    background: #087a39;
-}
-
-/* TARJETAS */
-.card {
-    background: white;
-    padding: 15px;
-    margin-top: 15px;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-/* INPUTS */
-input {
-    padding: 8px;
-    margin: 5px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-}
-
-/* LISTA */
-.cliente {
-    border-bottom: 1px solid #eee;
-    padding: 10px 0;
-}
-
-.titulo {
-    color: #2c70b8;
-    font-weight: bold;
-}
+body { font-family: Arial; background:#f4f6f8; }
+.nav { background:#0c9647; color:white; padding:15px; }
+.card { background:white; padding:15px; margin:10px; border-radius:10px; }
+button { background:#0c9647; color:white; border:none; padding:8px; margin:3px; border-radius:6px; }
 </style>
 
 </head>
 
 <body>
 
-<div class="navbar">
-    💳 Banco BCI - Sistema Clientes
-</div>
+<div class="nav">💳 Banco Sistema</div>
 
-<div class="container">
+<button onclick="listar()">Ver Todos</button>
+<button onclick="listarRut()">Solo con RUT</button>
 
-    <!-- BOTONES -->
-    <button onclick="listar()">📋 Ver Clientes</button>
+<div id="lista"></div>
 
-    <!-- LISTADO -->
-    <div id="lista" class="card"></div>
-
-    <!-- CREAR CLIENTE RUT -->
-    <div class="card">
-        <h3 class="titulo">➕ Cliente + Cuenta RUT</h3>
-        <input id="nombre" placeholder="Nombre">
-        <input id="rut_num" placeholder="Número cuenta">
-        <input id="rut_saldo" placeholder="Saldo">
-        <button onclick="crearRut()">Agregar</button>
-    </div>
-
-    <!-- CREAR CLIENTE AHORRO -->
-    <div class="card">
-        <h3 class="titulo">💰 Cliente + Cuenta Ahorro</h3>
-        <input id="nombre2" placeholder="Nombre">
-        <input id="ah_num" placeholder="Número cuenta">
-        <input id="ah_saldo" placeholder="Saldo">
-        <button onclick="crearAhorro()">Agregar</button>
-    </div>
-
-</div>
+<h3>Agregar cuenta a cliente</h3>
+<input id="idCliente" placeholder="ID cliente">
+<input id="numero" placeholder="Número">
+<input id="saldo" placeholder="Saldo">
+<button onclick="agregarRut()">Agregar RUT</button>
+<button onclick="agregarAhorro()">Agregar Ahorro</button>
 
 <script>
 const API = "http://localhost:3000";
 
+function render(data) {
+    const lista = document.getElementById('lista');
+    lista.innerHTML = '';
+
+    data.clientes.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'card';
+
+        div.innerHTML = `
+        <b>${c.nombre}</b> (ID: ${c.id})<br>
+        RUT: ${c.cuentaRUT ? c.cuentaRUT.numero : 'No tiene'}<br>
+        Ahorros: ${c.cuentasAhorro.length}<br>
+
+        <button onclick="eliminarCliente(${c.id})">Eliminar cliente</button>
+        <button onclick="eliminarRut(${c.id})">Eliminar RUT</button>
+        `;
+
+        c.cuentasAhorro.forEach(a => {
+            const btn = document.createElement('button');
+            btn.textContent = 'Eliminar ahorro ' + a.numero;
+            btn.onclick = () => eliminarAhorro(c.id, a.numero);
+            div.appendChild(btn);
+        });
+
+        lista.appendChild(div);
+    });
+}
+
 function listar() {
     fetch(API)
-    .then(r => r.json())
-    .then(data => {
-        const lista = document.getElementById('lista');
-        lista.innerHTML = '';
-
-        data.clientes.forEach(c => {
-            const div = document.createElement('div');
-            div.classList.add('cliente');
-
-            div.innerHTML = `
-                <strong>${c.nombre}</strong><br>
-                RUT: ${c.cuentaRUT ? c.cuentaRUT.numero : 'No tiene'}<br>
-                Ahorros: ${c.cuentasAhorro.length}
-                <br><br>
-                <button onclick="eliminarCliente(${c.id})">Eliminar</button>
-            `;
-
-            lista.appendChild(div);
-        });
-    });
+    .then(r=>r.json())
+    .then(render);
 }
 
-function crearRut() {
-    fetch(API, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            accion: 'nuevo_cliente_rut',
-            nombre: document.getElementById('nombre').value,
-            numero: document.getElementById('rut_num').value,
-            saldo: document.getElementById('rut_saldo').value
-        })
-    }).then(() => {
-        alert('Cliente creado');
-        listar();
-    });
+function listarRut() {
+    fetch(API + '?filtro=rut')
+    .then(r=>r.json())
+    .then(render);
 }
 
-function crearAhorro() {
+function agregarRut() {
     fetch(API, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-            accion: 'nuevo_cliente_ahorro',
-            nombre: document.getElementById('nombre2').value,
-            numero: document.getElementById('ah_num').value,
-            saldo: document.getElementById('ah_saldo').value
+            accion:'agregar_rut',
+            id: document.getElementById('idCliente').value,
+            numero: document.getElementById('numero').value,
+            saldo: document.getElementById('saldo').value
         })
-    }).then(() => {
-        alert('Cliente creado');
-        listar();
-    });
+    }).then(()=>listar());
+}
+
+function agregarAhorro() {
+    fetch(API, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+            accion:'agregar_ahorro',
+            id: document.getElementById('idCliente').value,
+            numero: document.getElementById('numero').value,
+            saldo: document.getElementById('saldo').value
+        })
+    }).then(()=>listar());
 }
 
 function eliminarCliente(id) {
-    fetch(`${API}?id=${id}&tipo=cliente`, {
-        method: 'DELETE'
-    }).then(() => {
-        alert('Cliente eliminado');
-        listar();
-    });
+    fetch(`${API}?id=${id}&tipo=cliente`, {method:'DELETE'})
+    .then(()=>listar());
+}
+
+function eliminarRut(id) {
+    fetch(`${API}?id=${id}&tipo=rut`, {method:'DELETE'})
+    .then(()=>listar());
+}
+
+function eliminarAhorro(id, numero) {
+    fetch(`${API}?id=${id}&tipo=ahorro&numero=${numero}`, {method:'DELETE'})
+    .then(()=>listar());
 }
 </script>
 
 </body>
 </html>
+
